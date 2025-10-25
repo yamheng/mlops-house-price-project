@@ -1,0 +1,46 @@
+# 工作流的名字
+name: CI - 持续集成测试
+
+# 触发条件
+on:
+  # 1. 当有代码 push 到 dev 分支时 (我们合并后会触发)
+  push:
+    branches:
+      - dev
+  # 2. (核心) 当有 Pull Request 的目标是 dev 分支时
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  # 任务的名字
+  test-and-lint:
+    # 运行在哪台电脑上？（GitHub 提供的虚拟 Ubuntu 电脑）
+    runs-on: ubuntu-latest
+
+    steps:
+      # 第1步：把代码从 GitHub 仓库下载到虚拟电脑上
+      - name: 检出代码 (Checkout code)
+        uses: actions/checkout@v3
+
+      # 第2步：安装 Python 3.9
+      - name: 设置 Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # 第3步：安装我们项目需要的所有库
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 第4步：获取数据 (作为测试的一部分)
+      - name: 运行 get_data.py
+        run: python get_data.py
+
+      # 第5步：运行训练脚本 (这是我们的核心测试！)
+      # 为什么？ 如果 train.py 还能报错 (比如你上次的 TypeError)，
+      # 这一步就会失败，整个 CI 就会显示“红色叉”，阻止你合并！
+      - name: 运行模型训练 (作为测试)
+        run: python train.py
