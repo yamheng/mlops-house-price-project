@@ -1,0 +1,15 @@
+# 忽略 Git 仓库本身
+.git
+.github
+
+# 忽略 Python 缓存文件
+__pycache__/
+*.pyc
+
+# 忽略 DVC 缓存 (我们会在 Docker 内部重新生成数据)
+.dvc/cache
+data/housing.csv
+
+# 忽略 Python 虚拟环境
+venv/
+.venv/
