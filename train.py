@@ -18,10 +18,17 @@ def train_model():
 
     # --- MLflow 设置 (和原来一样) ---
     print("设置 MLflow 跟踪...")
-    local_registry = "file:" + os.path.join(os.path.dirname(__file__), "mlruns")
-    mlflow.set_tracking_uri(local_registry)
-    mlflow.set_experiment("California Housing Price Prediction")
-    
+    tracking_uri = "file:./mlruns"
+    mlflow.set_tracking_uri(tracking_uri)
+
+    experiment_name = "California Housing Price Prediction"
+    try:
+    # 我们在创建实验时，就指定工件位置
+        mlflow.create_experiment(experiment_name, artifact_location=tracking_uri)
+    except mlflow.exceptions.MlflowException:
+        pass # 如果实验已经存在，就用它
+
+    mlflow.set_experiment(experiment_name)  
     # --- 1. 加载数据 (和原来一样) ---
     print("加载数据...")
     data_path = os.path.join('data', 'housing.csv') 
@@ -48,14 +55,14 @@ def train_model():
     df['total_bedrooms'].fillna(median_bedrooms, inplace=True)
 
     # 2b. 创建 'Ave' (平均) 特征
-    # 为什么？ 我们的网站 (app.py) 需要 'AveRooms', 'AveBedrms' 等 [cite: 215]。
+    # 为什么？ 我们的网站 (app.py) 需要 'AveRooms', 'AveBedrms' 等 。
     # 但我们只有 'total_rooms', 'total_bedrooms', 'households'。
     # 所以我们用除法来创造它们。
     df['AveRooms'] = df['total_rooms'] / df['households']
     df['AveBedrms'] = df['total_bedrooms'] / df['households']
     df['AveOccup'] = df['population'] / df['households']
     
-    # 2c. 重命名列以匹配网站 (app.py) 的需求 [cite: 215]
+    # 2c. 重命名列以匹配网站 (app.py) 的需求 
     # 为什么？ 我们的网站期望 'MedInc'，但数据里叫 'median_income'。
     # 我们在这里统一它们的命名。
     df.rename(columns={
@@ -63,10 +70,10 @@ def train_model():
         'housing_median_age': 'HouseAge',
         'latitude': 'Latitude',
         'longitude': 'Longitude'
-        # 'population' 在原始数据 和网页 [cite: 215] 中名称一致 (都叫 'Population'，注意大小写)，
+        # 'population' 在原始数据 和网页中名称一致 (都叫 'Population'，注意大小写)，
         # Pandas 默认会把 CSV 的列名 'population' 读成小写。
-        # 我们的 app.py [cite: 215] 也统一使用大写的 'Population' (来自 request.form)
-        # 这里的关键是 train.py 和 app.py [cite: 215] 使用 *一致* 的特征名
+        # 我们的 app.py也统一使用大写的 'Population' (来自 request.form)
+        # 这里的关键是 train.py 和 app.py 使用 *一致* 的特征名
         # 我们在下面第3步中会明确指定使用哪些列，所以大小写问题不大
     }, inplace=True)
     
@@ -75,19 +82,19 @@ def train_model():
     # --- 3. 准备数据 (修改后) ---
     
     # 为什么是这 8 个？(Why these 8?)
-    # 这 8 个特征是我们网页 app.py 唯一知道的 8 个输入项 [cite: 215]。
+    # 这 8 个特征是我们网页 app.py 唯一知道的 8 个输入项 。
     # 为了让模型和网页兼容，我们 *必须* 只用这 8 个特征来训练。
     #
     # !! 这也巧妙地 *避开* 了 'ocean_proximity' 列 !!
     # 也就是导致你报错的那一列，我们干脆不使用它。
     
-    # 我们统一使用 app.py [cite: 215] 中定义的特征名
+    # 我们统一使用 app.py 中定义的特征名
     feature_names = [
         'MedInc', 
         'HouseAge', 
         'AveRooms', 
         'AveBedrms', 
-        'Population', # 在 app.py [cite: 215] 中是 'Population'
+        'Population', # 在 app.py 中是 'Population'
         'AveOccup', 
         'Latitude', 
         'Longitude'
@@ -119,7 +126,7 @@ def train_model():
     # y 是目标 (房价)
     y = df[target_name]
     
-    # (重要!) 更改 X 的列名，使其与 app.py [cite: 215] 严格一致
+    # (重要!) 更改 X 的列名，使其与 app.py严格一致
     # 这样 MLflow 保存的模型才知道它期望的输入名是什么
     X.columns = feature_names
 

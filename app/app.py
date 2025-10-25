@@ -8,13 +8,11 @@ app = Flask(__name__)
 
 # 2. 加载模型
 # (我们使用版本号 "2" 来加载，这是我们在上一步中确定的)
-model_uri = "models:/HousePricePredictor/2" 
+model_uri = "models:/HousePricePredictor/1" 
 model = None
 try:
     # 找到 mlruns 文件夹的绝对路径
-    project_root = os.path.dirname(os.path.dirname(__file__))
-    local_registry = "file:" + os.path.join(project_root, "mlruns")
-    mlflow.set_tracking_uri(local_registry)
+    mlflow.set_tracking_uri("file:./mlruns")
     
     model = mlflow.pyfunc.load_model(model_uri) 
     print("模型加载成功！")
