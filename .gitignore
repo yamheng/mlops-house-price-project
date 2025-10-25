@@ -1,0 +1,14 @@
+# 忽略 Python 缓存文件
+__pycache__/
+*.pyc
+
+# 忽略 MLflow 运行记录 (我们只在本地看)
+mlruns/
+
+# 忽略 DVC 缓存 (数据本身)
+.dvc/cache
+data/housing.csv
+
+# 忽略 Python 虚拟环境
+venv/
+.venv/
