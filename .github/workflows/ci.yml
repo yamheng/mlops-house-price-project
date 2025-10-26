@@ -1,0 +1,49 @@
+name: CI - 持续集成测试
+on:
+  pull_request: # 触发条件：当有 Pull Request 时
+    branches:
+      - dev     # 并且目标是 dev 分支时
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest # 在一台 Ubuntu (Linux) 虚拟机上运行
+    
+    # --- (补救方案二：注入 DagsHub Secrets) ---
+    env:
+      DAGSHUB_TRACKING_URI: ${{ secrets.DAGSHUB_TRACKING_URI }}
+      DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+      DAGSHUB_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
+    # --- (修复结束) ---
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3 # 1. 下载代码 [cite: 2]
+
+      - name: 设置 Python 3.9
+        uses: actions/setup-python@v4 # 2. 安装 Python [cite: 2]
+        with:
+          python-version: '3.9'
+
+      - name: 安装依赖
+        run: | # 3. 运行命令行，安装"购物清单"里的库  [cite: 2, 161-164]
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # --- (补救方案一：自动化 Linting) ---
+      - name: 运行 Linting (Flake8)
+        run: |
+          # 检查代码风格，--statistics 显示统计，--show-source 显示问题代码
+          flake8 . --count --show-source --statistics
+      # --- (修复结束) ---
+
+      # --- (补救方案一：自动化 Tests) ---
+      - name: 运行单元测试 (Pytest)
+        run: |
+          pytest
+      # --- (修复结束) ---
+
+      - name: 获取数据
+        run: python get_data.py # 4. 测试数据脚本 [cite: 2]
+
+      - name: 运行模型训练 (推送到 DagsHub)
+        # (此步骤现在会自动使用上面 env: 中注入的 DagsHub 凭证)
+        run: python train.py # 5. 测试训练脚本 [cite: 2]
