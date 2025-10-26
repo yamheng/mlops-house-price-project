@@ -5,3 +5,6 @@ numpy
 flask
 gunicorn
 requests
+flake8
+pytest          
+python-dotenv    
