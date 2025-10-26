@@ -1,55 +1,49 @@
-# 工作流的名字
 name: CI - 持续集成测试
-
-# 触发条件
 on:
-  # 1. 当有代码 push 到 dev 分支时 (我们合并后会触发)
-  push:
+  pull_request: # 触发条件：当有 Pull Request 时
     branches:
-      - dev
-  # 2. (核心) 当有 Pull Request 的目标是 dev 分支时
-  pull_request:
-    branches:
-      - dev
-
+      - dev     # 并且目标是 dev 分支时
 jobs:
-  # 任务的名字
   test-and-lint:
-    # 运行在哪台电脑上？（GitHub 提供的虚拟 Ubuntu 电脑）
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # 在一台 Ubuntu (Linux) 虚拟机上运行
+    
+    # --- (补救方案二：注入 DagsHub Secrets) ---
+    env:
+      DAGSHUB_TRACKING_URI: ${{ secrets.DAGSHUB_TRACKING_URI }}
+      DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+      DAGSHUB_PASSWORD: ${{ secrets.DAGSHUB_PASSWORD }}
+    # --- (修复结束) ---
 
     steps:
-      # 第1步：把代码从 GitHub 仓库下载到虚拟电脑上
-      - name: 检出代码 (Checkout code)
-        uses: actions/checkout@v3
+      - name: 检出代码
+        uses: actions/checkout@v3 # 1. 下载代码 [cite: 2]
 
-      # 第2步：安装 Python 3.9
       - name: 设置 Python 3.9
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v4 # 2. 安装 Python [cite: 2]
         with:
           python-version: '3.9'
 
-      # 第3步：安装我们项目需要的所有库
       - name: 安装依赖
-        run: |
+        run: | # 3. 运行命令行，安装"购物清单"里的库  [cite: 2, 161-164]
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 运行 Linting (Flake8)  # <-- 补救 1：自动化 Linting
+      # --- (补救方案一：自动化 Linting) ---
+      - name: 运行 Linting (Flake8)
         run: |
           # 检查代码风格，--statistics 显示统计，--show-source 显示问题代码
           flake8 . --count --show-source --statistics
+      # --- (修复结束) ---
 
-      - name: 运行单元测试 (Pytest)  # <-- 补救 2：自动化 Tests
+      # --- (补救方案一：自动化 Tests) ---
+      - name: 运行单元测试 (Pytest)
         run: |
           pytest
+      # --- (修复结束) ---
 
-      # 第4步：获取数据 (作为测试的一部分)
-      - name: 运行 get_data.py
-        run: python get_data.py
+      - name: 获取数据
+        run: python get_data.py # 4. 测试数据脚本 [cite: 2]
 
-      # 第5步：运行训练脚本 (这是我们的核心测试！)
-      # 为什么？ 如果 train.py 还能报错 (比如你上次的 TypeError)，
-      # 这一步就会失败，整个 CI 就会显示“红色叉”，阻止你合并！
-      - name: 运行模型训练 (作为测试)
-        run: python train.py
+      - name: 运行模型训练 (推送到 DagsHub)
+        # (此步骤现在会自动使用上面 env: 中注入的 DagsHub 凭证)
+        run: python train.py # 5. 测试训练脚本 [cite: 2]

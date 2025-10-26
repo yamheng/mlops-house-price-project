@@ -1,24 +1,31 @@
 from flask import Flask, request, render_template_string
 import mlflow
 import pandas as pd
+import os  # <-- 修复 E261：这里有两个空格
+from dotenv import load_dotenv  # <-- 修复 E261：这里有两个空格
 
 app = Flask(__name__)
+load_dotenv()  # <-- 新增：加载 .env 文件
 
-# --- (修复：使用相对路径) ---
-mlflow.set_tracking_uri("file:./mlruns")
+# --- (这是修复：使用 DagsHub) ---
+mlflow.set_tracking_uri(os.getenv("DAGSHUB_TRACKING_URI"))
+os.environ["MLFLOW_TRACKING_USERNAME"] = os.getenv("DAGSHUB_USERNAME")
+os.environ["MLFLOW_TRACKING_PASSWORD"] = os.getenv("DAGSHUB_PASSWORD")
+# --- (修复结束) ---
 
-# --- (修复：按版本号加载) ---
+# --- (这部分不变，它现在会从 DagsHub 加载) ---
 model_uri = "models:/HousePricePredictor/1"
 model = None
 
 try:
     model = mlflow.pyfunc.load_model(model_uri)
-    print("模型加载成功！")
+    # --- (这是修复：更新提示信息) ---
+    print("模型从 DagsHub 加载成功！")
 except Exception as e:
-    print(f"加载模型失败: {e}")
+    # --- (这是修复：更新提示信息) ---
+    print(f"从 DagsHub 加载模型失败: {e}")
 
-# --- (这是更新后的 HTML 模板) ---
-# (修复 E501: 对过长的行进行了换行)
+# --- (HTML 模板... 这部分与你提供的 app.py 保持一致) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -47,18 +54,16 @@ HTML_TEMPLATE = """
                  border-radius: 4px; cursor: pointer; font-size: 16px; }
         .result { margin-top: 20px; font-size: 1.2em; font-weight: bold; }
 
-        /* 2. 为地图容器设置一个大小 */
         #map {
             height: 300px;
             width: 100%;
-            margin-bottom: 20px; /* 在地图和表单之间添加一些间距 */
+            margin-bottom: 20px;
             border-radius: 8px;
-            border: 1px solid #ccc; /* 给地图加个边框 */
+            border: 1px solid #ccc;
         }
 
-        /* 3. 自定义弹窗 (替代 alert()) */
         .modal {
-            display: none; /* 默认隐藏 */
+            display: none;
             position: fixed; z-index: 1000; left: 0; top: 0;
             width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.4);
@@ -137,20 +142,14 @@ HTML_TEMPLATE = """
             crossorigin=""></script>
 
     <script>
-        // --- 1. 获取表单和弹窗元素 ---
         var latInput = document.getElementById('Latitude');
         var lngInput = document.getElementById('Longitude');
         var modal = document.getElementById('alertModal');
         var modalMsg = document.getElementById('alertMessage');
 
-        // --- (已删除) 删除了 roundUpOnInput 函数 ---
-
-        // --- (已删除) 删除了 onchange 事件绑定 ---
-
         var initialLat = parseFloat(latInput.value);
         var initialLng = parseFloat(lngInput.value);
 
-        // --- 2. 立即初始化地图 (保证地图总能显示) ---
         var map = L.map('map').setView([36.778, -119.417], 6);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org' +
@@ -158,7 +157,6 @@ HTML_TEMPLATE = """
         }).addTo(map);
         var marker = L.marker([initialLat, initialLng]).addTo(map);
 
-        // --- (新增) 修复问题3: 表单提交前验证整数 ---
         var form = document.querySelector('form');
         form.addEventListener('submit', function(event) {
             const fieldsToCheck = [
@@ -171,7 +169,6 @@ HTML_TEMPLATE = """
             let invalidFields = [];
             for (const field of fieldsToCheck) {
                 const input = document.getElementById(field.id);
-                // 检查值是否为数字，以及是否 浮点数 % 1 不等于 0 (即有小数)
                 const value = parseFloat(input.value);
 
                 if (isNaN(value) || value % 1 !== 0) {
@@ -180,16 +177,13 @@ HTML_TEMPLATE = """
             }
 
             if (invalidFields.length > 0) {
-                event.preventDefault(); // 阻止表单提交
+                event.preventDefault();
                 showAlert(invalidFields.join('、') + " 必须为整数。");
             }
         });
-        // --- 修复结束 ---
 
-        // --- 3. 辅助函数 ---
         function updateMarkerAndForm(latlng) {
             marker.setLatLng(latlng);
-            // (修复问题2): JS 这边也放开精度限制，使用 toFixed(6) 提高精度
             latInput.value = latlng.lat.toFixed(6);
             lngInput.value = latlng.lng.toFixed(6);
         }
@@ -206,45 +200,36 @@ HTML_TEMPLATE = """
             }
         }
 
-        // --- 4. 尝试加载加州边界 (这部分逻辑在您的代码中已正确) ---
-
-        // *** (修复问题1): 更换为更可靠的 GeoJSON URL ***
-        // (修复 E501: 将过长的 URL 字符串拆分为两行)
         var baseUrl = "https://raw.githubusercontent.com/johan/world.geo.json";
         var geoJsonUrl = baseUrl + "/master/countries/USA/CA.geo.json";
 
         var boundaryStyle = {
-            "color": "#007bff",      // 边框颜色 (蓝色)
-            "weight": 3,             // 边框宽度
-            "fillOpacity": 0.1,      // 填充透明度
-            "fillColor": "#007bff"    // 填充颜色
+            "color": "#007bff",
+            "weight": 3,
+            "fillOpacity": 0.1,
+            "fillColor": "#007bff"
         };
 
         fetch(geoJsonUrl)
             .then(res => res.json())
             .then(data => {
-                // --- 5.1 加载成功 (问题1的实现) ---
                 var californiaLayer = L.geoJson(data, {
                     style: boundaryStyle
                 }).addTo(map);
 
-                map.fitBounds(californiaLayer.getBounds()); // 自动缩放
+                map.fitBounds(californiaLayer.getBounds());
 
-                // 核心：点击事件只绑在加州图层上
                 californiaLayer.on('click', function(e) {
                     updateMarkerAndForm(e.latlng);
-                    L.DomEvent.stopPropagation(e); // 阻止事件冒泡到 map
+                    L.DomEvent.stopPropagation(e);
                 });
 
-                // 如果点击了加州以外 (即地图本身)
                 map.on('click', function(e) {
                     showAlert("请在加州高亮区域内选择一个点。");
                 });
             })
             .catch(err => {
-                // --- 5.2 加载失败 (网络问题等) ---
                 console.error("无法加载加州边界:", err);
-                // 优雅降级：回退到“简单模式”
                 map.on('click', function(e) {
                     updateMarkerAndForm(e.latlng);
                 });
@@ -258,8 +243,7 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def home():
-    # 模板现在更丰富了，但我们传参的方式不变
-    # (修复 E11x, E12x: 修正参数缩进)
+    # (这部分与你提供的 app.py 保持一致)
     return render_template_string(
         HTML_TEMPLATE,
         prediction_text="",
@@ -269,8 +253,8 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    # (这部分与你提供的 app.py 保持一致)
     if model is None:
-        # (修复 E11x, E12x, E501: 修正参数缩进)
         return render_template_string(
             HTML_TEMPLATE,
             prediction_text="错误：模型未加载。",
@@ -278,45 +262,36 @@ def predict():
         )
 
     try:
-        # --- 5. 后端数据清理和验证 (根据你的新要求) ---
-
-        # 收入和房龄保持不变 (四舍五入到2位小数)
         medInc = round(float(request.form['MedInc']), 2)
         houseAge = round(float(request.form['HouseAge']), 2)
 
-        # *** (修复问题3): 后端验证整数 ***
         try:
             f_aveRooms = float(request.form['AveRooms'])
             f_aveBedrms = float(request.form['AveBedrms'])
             f_population = float(request.form['Population'])
             f_aveOccup = float(request.form['AveOccup'])
         except ValueError:
-            # (修复 E11x, E12x: 修正参数缩进)
             return render_template_string(
                 HTML_TEMPLATE,
                 prediction_text="错误：输入包含无效数字。",
                 form_values=request.form
             )
 
-        # 验证检查
         if (f_aveRooms % 1 != 0 or
                 f_aveBedrms % 1 != 0 or
                 f_population % 1 != 0 or
                 f_aveOccup % 1 != 0):
-            # (修复 E11x, E12x: 修正参数缩进)
             return render_template_string(
                 HTML_TEMPLATE,
                 prediction_text="错误：房间数、卧室数和人数必须为整数。",
                 form_values=request.form
             )
 
-        # 验证通过，使用这些值
         aveRooms = f_aveRooms
         aveBedrms = f_aveBedrms
         population = f_population
         aveOccup = f_aveOccup
-        # *** 修复结束 ***
-        # (修复 E303: 移除了这里多余的空行)
+
         latitude = float(request.form['Latitude'])
         longitude = float(request.form['Longitude'])
 
@@ -339,14 +314,12 @@ def predict():
         input_data = pd.DataFrame([features], columns=feature_names)
         prediction = model.predict(input_data)
 
-        # --- (修复：删除 * 100000) ---
         output = f"预测房价: ${prediction[0]:,.2f}"
 
     except Exception as e:
         output = f"预测出错: {e}"
 
-    # 预测后，我们仍然返回模板，它会保留用户最后点击的经纬度值
-    # (修复 E11x, E12x: 修正参数缩进)
+    # (修复 W293: 移除了这里可能存在的带空格的空行)
     return render_template_string(
         HTML_TEMPLATE,
         prediction_text=output,

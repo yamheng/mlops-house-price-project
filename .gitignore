@@ -12,3 +12,5 @@ data/housing.csv
 # 忽略 Python 虚拟环境
 venv/
 .venv/
+
+.env             # <-- 新增：忽略本地环境变量
