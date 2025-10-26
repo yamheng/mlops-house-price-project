@@ -35,6 +35,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: 运行 Linting (Flake8)  # <-- 补救 1：自动化 Linting
+        run: |
+          # 检查代码风格，--statistics 显示统计，--show-source 显示问题代码
+          flake8 . --count --show-source --statistics
+
+      - name: 运行单元测试 (Pytest)  # <-- 补救 2：自动化 Tests
+        run: |
+          pytest
+
       # 第4步：获取数据 (作为测试的一部分)
       - name: 运行 get_data.py
         run: python get_data.py
