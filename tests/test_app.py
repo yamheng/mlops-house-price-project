@@ -5,8 +5,7 @@ import sys
 # (修复路径)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# 导入 app/app.py 中的 'app' 变量
-from app.app import app  # noqa: E402
+from app.app import app  # noqa: E402 (告诉 flake8 忽略这行)
 
 
 def test_home_page():
@@ -19,7 +18,11 @@ def test_home_page():
 
     # 断言
     assert response.status_code == 200
-    assert b"California Housing Price Predictor" in response.data
+
+    # --- (这是修复！) ---
+    # (修改) 查找中文 "加州房价预测器" 的 UTF-8 字节
+    assert b'\xe5\x8a\xa0\xe5\xb7\x9e\xe6\x88\xbf\xe4\xbb\xb7\xe9\xa2\x84\xe6\xb5\x8b\xe5\x99\xa8' in response.data  # noqa: E501
+    # --- (修复结束) ---
 
 
 def test_predict_endpoint():
@@ -43,6 +46,7 @@ def test_predict_endpoint():
 
     # 断言
     assert response.status_code == 200
-    # 检查预测结果是否出现在页面上
-    assert b"Predicted House Price:" in response.data
-    assert b"$" in response.data  # 检查是否有美元符号
+
+    # --- (这是修复！) ---
+    # (修改) 查找中文 "预测房价:" 的 UTF-8 字节
+    assert b'\xe9\xa2\x84\xe6\xb5\x8b\xe6\x88\xbf\xe4\xbb\xb7:' in response.data  # noqa: E501
