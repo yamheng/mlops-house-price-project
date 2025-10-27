@@ -1,3 +1,5 @@
+# .github/workflows/ci.yml
+
 name: CI - 持续集成测试
 on:
   pull_request: # 触发条件：当有 Pull Request 时
@@ -16,34 +18,51 @@ jobs:
 
     steps:
       - name: 检出代码
-        uses: actions/checkout@v3 # 1. 下载代码 [cite: 2]
+        uses: actions/checkout@v3
 
       - name: 设置 Python 3.9
-        uses: actions/setup-python@v4 # 2. 安装 Python [cite: 2]
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
       - name: 安装依赖
-        run: | # 3. 运行命令行，安装"购物清单"里的库  [cite: 2, 161-164]
+        run: | # 3. 运行命令行，安装所有库
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # --- (补救方案三：安装 DVC) ---
+          pip install dvc[azure]  # (我们用 DagsHub, 但包名无所谓)
+          
+      - name: 配置 DVC (使用 DagsHub 存储)
+        # --- (补救方案三：修复版 v3) ---
+        run: |
+          # 1. (不变) *创建* 'origin' 遥控器
+          dvc remote add origin https://dagshub.com/yamheng/mlops-house-price-project.dvc
+          
+          # 2. (不变) 设置遥控器凭证
+          dvc remote modify origin --local auth basic
+          dvc remote modify origin --local user ${{ secrets.DAGSHUB_USERNAME }}
+          dvc remote modify origin --local password ${{ secrets.DAGSHUB_PASSWORD }}
+          
+          # 3. (这是新修复！) 将 'origin' 设置为默认遥控器
+          dvc remote default origin
+          
+      - name: DVC 拉取数据 (用于 Pytest)
+        # --- (补救方案三：在测试前拉取数据) ---
+        run: |
+          # (不变) dvc pull 现在会自动使用默认的 'origin' 遥控器
+          dvc pull data/housing.csv.dvc -f
 
-      # --- (补救方案一：自动化 Linting) ---
       - name: 运行 Linting (Flake8)
         run: |
-          # 检查代码风格，--statistics 显示统计，--show-source 显示问题代码
           flake8 . --count --show-source --statistics
-      # --- (修复结束) ---
 
-      # --- (补救方案一：自动化 Tests) ---
       - name: 运行单元测试 (Pytest)
         run: |
           pytest
-      # --- (修复结束) ---
 
-      - name: 获取数据
-        run: python ml/get_data.py # 4. 测试数据脚本 [cite: 2]
+      - name: 获取数据 (用于训练)
+        # (这步现在被 dvc pull 替代了，但保留也无妨)
+        run: python ml/get_data.py
 
       - name: 运行模型训练 (推送到 DagsHub)
-        # (此步骤现在会自动使用上面 env: 中注入的 DagsHub 凭证)
-        run: python ml/train.py # 5. 测试训练脚本 [cite: 2]
+        run: python ml/train.py
