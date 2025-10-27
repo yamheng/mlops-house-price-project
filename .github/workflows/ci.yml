@@ -42,8 +42,8 @@ jobs:
       # --- (修复结束) ---
 
       - name: 获取数据
-        run: python get_data.py # 4. 测试数据脚本 [cite: 2]
+        run: python ml/get_data.py # 4. 测试数据脚本 [cite: 2]
 
       - name: 运行模型训练 (推送到 DagsHub)
         # (此步骤现在会自动使用上面 env: 中注入的 DagsHub 凭证)
-        run: python train.py # 5. 测试训练脚本 [cite: 2]
+        run: python ml/train.py # 5. 测试训练脚本 [cite: 2]
