@@ -25,37 +25,42 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install dvc[azure] # (包名无所谓)
+          pip install dvc[azure] # (我们用 dagsHub, 但包名无所谓)
 
       - name: 配置 DVC (使用 DagsHub 存储)
         run: |
-          # --- (这是最终的修复！) ---
-          # 1. 使用 *正确* 的仓库名 'mlops-house-price-predictor'
-          dvc remote add origin https://dagshub.com/yamheng/mlops-house-price-predictor.dvc
-
-          # 2. (不变) 设置凭证
+          # (我们只修改，不添加，因为 .dvc/config 已经在了)
           dvc remote modify origin --local auth basic
           dvc remote modify origin --local user ${{ secrets.DAGSHUB_USERNAME }}
           dvc remote modify origin --local password ${{ secrets.DAGSHUB_PASSWORD }}
-
-          # 3. (不变) 设置默认
           dvc remote default origin
-
-      - name: DVC 拉取数据 (用于 Pytest)
+          
+      - name: DVC 拉取数据 (用于 Pytest 和训练)
+        # (我们只拉取一次，供后续所有步骤使用)
         run: |
-          # (不变) dvc pull 现在会从正确的遥控器拉取
           dvc pull data/housing.csv.dvc -f
 
       - name: 运行 Linting (Flake8)
-        run: |
-          flake8 . --count --show-source --statistics
+        run: flake8 . --count --show-source --statistics
 
       - name: 运行单元测试 (Pytest)
-        run: |
-          pytest
+        # (这一步现在是安全的，它不会再删除 .dvc 文件了)
+        run: pytest
 
-      - name: 获取数据 (用于训练)
-        run: python ml/get_data.py
+      # --- (这是修复！) ---
+      # (已删除) "获取数据(用于训练)" 步骤已被删除，因为它很多余
+      # --- (修复结束) ---
 
       - name: 运行模型训练 (推送到 DagsHub)
+        # (这一步会找到 dvc pull 下拉的数据)
         run: python ml/train.py
+        
+      - name: 创建用于测试的 .env 文件
+        run: |
+          echo "DAGSHUB_TRACKING_URI=${{ secrets.DAGSHUB_TRACKING_URI }}" >> .env
+          echo "DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}" >> .env
+          echo "DAGSHUB_PASSWORD=${{ secrets.DAGSHUB_PASSWORD }}" >> .env
+          
+      - name: (新增) 测试 Docker 镜像是否能构建
+        run: |
+          docker build -t my-test-image .

@@ -1,3 +1,4 @@
+# .github/workflows/cd.yml
 name: CD - 持续部署 (构建并推送 Docker 镜像)
 
 on:
@@ -10,16 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # 需要写入 GitHub Packages 的权限
+      packages: write
 
     steps:
       - name: 检出代码
         uses: actions/checkout@v3
 
-      - name: 获取数据 (用于 Docker 构建)
+      # --- (这是新增的！) ---
+      - name: 创建生产 .env 文件
         run: |
-          pip install pandas requests scikit-learn
-          python get_data.py
+          echo "DAGSHUB_TRACKING_URI=${{ secrets.DAGSHUB_TRACKING_URI }}" >> .env
+          echo "DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}" >> .env
+          echo "DAGSHUB_PASSWORD=${{ secrets.DAGSHUB_PASSWORD }}" >> .env
+      # --- (新增结束) ---
 
       - name: 登录到 GitHub 集装箱仓库 (GHCR)
         uses: docker/login-action@v2
